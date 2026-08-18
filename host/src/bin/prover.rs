@@ -2,6 +2,7 @@ use common::AssessmentResult;
 use methods::METHOD_ELF;
 use risc0_zkvm::{default_prover, ExecutorEnv};
 use std::fs;
+use std::time::Instant;
 
 fn main() {
     let input = common::FinancialData {
@@ -26,9 +27,22 @@ fn main() {
 
     let prover = default_prover();
 
+    // let prove_info = prover
+    //     .prove(env, METHOD_ELF)
+    //     .unwrap();
+
+    let start = Instant::now();
+
     let prove_info = prover
         .prove(env, METHOD_ELF)
         .unwrap();
+
+    let proving_time = start.elapsed();
+
+    println!(
+        "Proving time: {:.3} seconds",
+        proving_time.as_secs_f64()
+    );
 
     let receipt = prove_info.receipt;
 
