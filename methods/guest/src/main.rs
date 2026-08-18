@@ -14,17 +14,27 @@
 //     env::commit(&input);
 // }
 
-
-use common::{calculate_metrics, FinancialData};
+use common::{
+    build_assessment_result,
+    calculate_credit_score,
+    calculate_metrics,
+    FinancialData,
+};
 use risc0_zkvm::guest::env;
 
 fn main() {
-    // Read the financial data provided by the host.
+    // Read private financial data.
     let data: FinancialData = env::read();
 
-    // Calculate the creditworthiness metrics inside the zkVM.
+    // Compute financial metrics.
     let metrics = calculate_metrics(&data);
 
-    // Commit the computed metrics to the journal.
-    env::commit(&metrics);
+    // Compute credit score and eligibility.
+    let credit_score = calculate_credit_score(&data, &metrics);
+
+    // Build the public assessment result and commitment.
+    let result = build_assessment_result(&data, &credit_score);
+
+    // Commit only public information to the journal.
+    env::commit(&result);
 }
