@@ -7,3 +7,5 @@ edition = "2021"
 eframe = "0.31"
 egui = "0.31"
 common = { path = "../common" }
+host = { path = "../host" }
+hex = "0.4"

@@ -1,5 +1,8 @@
-use common::{calculate_credit_score, calculate_metrics, FinancialData};
+// use common::{calculate_credit_score, calculate_metrics, FinancialData};
+use common::FinancialData;
+use host::generate_proof;
 use eframe::egui;
+use std::fs;
 
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions::default();
@@ -25,6 +28,12 @@ struct CreditScoreApp {
 
     score: Option<u64>,
     eligible: Option<bool>,
+    input_hash: Option<String>,
+    proving_time: Option<f64>,
+    receipt_size: Option<f64>,
+    proof_generated: bool,
+    verification_status: Option<bool>,
+    verification_error: Option<String>,
     error: Option<String>,
 }
 
@@ -116,33 +125,105 @@ impl eframe::App for CreditScoreApp {
                     }
                 }
             }
+
+            if self.proof_generated {
+                        ui.separator();
+
+                        ui.heading("Zero-Knowledge Proof");
+
+                        if let Some(hash) = &self.input_hash {
+                            ui.label("Input SHA-256:");
+
+                            ui.monospace(hash);
+                        }
+
+                        if let Some(time) = self.proving_time {
+                            ui.label(format!(
+                                "Proving time: {:.3} seconds",
+                                time
+                            ));
+                        }
+
+                        if let Some(size) = self.receipt_size {
+                            ui.label(format!(
+                                "Receipt size: {:.2} KB",
+                                size
+                            ));
+                        }
+
+                        ui.separator();
+
+                        if ui.button("Verify Receipt").clicked() {
+                            self.verify_receipt();
+                        }
+
+                        if let Some(status) = self.verification_status {
+                            if status {
+                                ui.colored_label(
+                                    egui::Color32::GREEN,
+                                    "Receipt verification: VALID",
+                                );
+                            } else {
+                                ui.colored_label(
+                                    egui::Color32::RED,
+                                    "Receipt verification: INVALID",
+                                );
+                            }
+                        }
+
+                        if let Some(error) = &self.verification_error {
+                            ui.colored_label(
+                                egui::Color32::RED,
+                                error,
+                            );
+                        }
+
+                        ui.label("Proof status: GENERATED");
+                    }
         });
     }
 }
 
 impl CreditScoreApp {
     fn calculate(&mut self) {
-        self.error = None;
-        self.score = None;
-        self.eligible = None;
+    self.error = None;
+    self.score = None;
+    self.eligible = None;
+    self.input_hash = None;
+    self.proving_time = None;
+    self.receipt_size = None;
+    self.proof_generated = false;
+    self.verification_status = None;
+    self.verification_error = None; 
 
-        let result = self.parse_financial_data();
+    let result = self.parse_financial_data();
 
-        match result {
-            Ok(data) => {
-                let metrics = calculate_metrics(&data);
-                let credit_score =
-                    calculate_credit_score(&data, &metrics);
+    match result {
+        Ok(data) => {
+            let result = generate_proof(data);
 
-                self.score = Some(credit_score.score);
-                self.eligible = Some(credit_score.eligible);
-            }
+            self.score = Some(result.assessment.credit_score);
+            self.eligible = Some(result.assessment.eligible);
 
-            Err(error) => {
-                self.error = Some(error);
-            }
+            self.input_hash = Some(
+                hex::encode(result.assessment.input_hash)
+            );
+
+            self.proving_time =
+                Some(result.proving_time.as_secs_f64());
+
+            self.receipt_size = fs::metadata("receipt.json")
+                .ok()
+                .map(|metadata| metadata.len() as f64 / 1024.0);
+
+            self.proof_generated = true;
+        }
+        Err(error) => {
+            self.error = Some(error);
         }
     }
+    }
+
 
     fn parse_financial_data(&self) -> Result<FinancialData, String> {
         Ok(FinancialData {
@@ -196,6 +277,31 @@ impl CreditScoreApp {
             )?,
         })
     }
+
+    fn verify_receipt(&mut self) {
+    self.verification_status = None;
+    self.verification_error = None;
+
+    match host::load_receipt() {
+        Ok(receipt) => {
+            match host::verify_receipt(&receipt) {
+                Ok(()) => {
+                    self.verification_status = Some(true);
+                }
+
+                Err(error) => {
+                    self.verification_status = Some(false);
+                    self.verification_error = Some(error);
+                }
+            }
+        }
+
+        Err(error) => {
+            self.verification_status = Some(false);
+            self.verification_error = Some(error);
+        }
+    }
+}
 }
 
 fn parse_u64(value: &str, field: &str) -> Result<u64, String> {
