@@ -2,7 +2,8 @@
 // The ELF is used for proving and the ID is used for verification.
 use methods::{METHOD_ELF, METHOD_ID};
 use risc0_zkvm::{default_prover, ExecutorEnv};
-use common::FinancialData;
+// use common::FinancialData;
+use common::{CreditMetrics, FinancialData};
 
 fn main() {
     // Initialize tracing. In order to view logs, run `RUST_LOG=info cargo run`
@@ -64,19 +65,31 @@ fn main() {
     // println!("Input: {input}");
     // println!("Output: {output}");
 
-    // Recuperare i dati finanziari dal journal della ricevuta
-    let output: FinancialData = receipt.journal.decode().unwrap();
-    println!("Financial data successfully processed:");
-    println!("  Monthly income: €{}", output.monthly_income);
-    println!("  Monthly expenses: €{}", output.monthly_expenses);
-    println!("  Total debt: €{}", output.total_debt);
-    println!("  Monthly debt service: €{}", output.monthly_debt_service);
-    println!("  Requested loan: €{}", output.requested_loan);
-    println!("  Loan duration: {} months", output.loan_duration_months);
+    // Calcola e stampa le metriche di creditworthiness
+    let metrics: CreditMetrics = receipt.journal.decode().unwrap();
+
+    println!("Creditworthiness metrics:");
+    println!(
+        "  DTI: {:.2}%",
+        metrics.dti_bps as f64 / 100.0
+    );
+    println!(
+        "  DSTI: {:.2}%",
+        metrics.dsti_bps as f64 / 100.0
+    );
+    println!(
+        "  LTI: {:.2}%",
+        metrics.lti_bps as f64 / 100.0
+    );
+    println!(
+        "  Disposable income: €{}",
+        metrics.disposable_income
+    );
 
     // The receipt was verified at the end of proving, but the below code is an
     // example of how someone else could verify this receipt.
     receipt
         .verify(METHOD_ID)
         .unwrap();
+    print!("Proof verification: VALID");
 }

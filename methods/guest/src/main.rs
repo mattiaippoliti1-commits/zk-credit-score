@@ -15,14 +15,16 @@
 // }
 
 
-
-use common::FinancialData;
+use common::{calculate_metrics, FinancialData};
 use risc0_zkvm::guest::env;
 
 fn main() {
     // Read the financial data provided by the host.
     let data: FinancialData = env::read();
 
-    // Commit the received data to the journal.
-    env::commit(&data);
+    // Calculate the creditworthiness metrics inside the zkVM.
+    let metrics = calculate_metrics(&data);
+
+    // Commit the computed metrics to the journal.
+    env::commit(&metrics);
 }

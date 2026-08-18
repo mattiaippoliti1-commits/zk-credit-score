@@ -44,3 +44,30 @@ pub fn calculate_metrics(data: &FinancialData) -> CreditMetrics {
         disposable_income,
     }
 }
+
+
+// Unit tests for the credit metrics calculation
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_credit_metrics() {
+        let data = FinancialData {
+            monthly_income: 3500,
+            monthly_expenses: 1500,
+            total_debt: 8000,
+            monthly_debt_service: 450,
+            requested_loan: 10000,
+            loan_duration_months: 36,
+        };
+
+        let metrics = calculate_metrics(&data);
+
+        assert_eq!(metrics.dti_bps, 1904);
+        assert_eq!(metrics.dsti_bps, 1285);
+        assert_eq!(metrics.lti_bps, 2380);
+        assert_eq!(metrics.disposable_income, 1550);
+    }
+}
