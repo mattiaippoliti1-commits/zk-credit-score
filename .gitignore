@@ -1,7 +1,8 @@
 .DS_Store
 Cargo.lock
 methods/guest/Cargo.lock
-target/
+/target
 receipt.json
-receipt-tampered.json
 receipt-original.json
+receipt-valid.json
+receipt-tampered.json

@@ -14,6 +14,21 @@ fn main() -> eframe::Result<()> {
     )
 }
 
+
+fn input_row(ui: &mut egui::Ui, label: &str, value: &mut String) {
+ui.horizontal(|ui| {
+    ui.add_sized(
+        [180.0, 20.0],
+        egui::Label::new(label),
+    );
+
+    ui.add_sized(
+        [180.0, 20.0],
+        egui::TextEdit::singleline(value),
+    );
+});
+}
+
 #[derive(Default)]
 struct CreditScoreApp {
     monthly_income: String,
@@ -49,50 +64,58 @@ impl eframe::App for CreditScoreApp {
 
             ui.heading("Financial Profile");
 
-            ui.horizontal(|ui| {
-                ui.label("Monthly income:");
-                ui.text_edit_singleline(&mut self.monthly_income);
-            });
+            input_row(
+            ui,
+            "Monthly expenses:",
+            &mut self.monthly_expenses,
+        );
 
-            ui.horizontal(|ui| {
-                ui.label("Monthly expenses:");
-                ui.text_edit_singleline(&mut self.monthly_expenses);
-            });
+            input_row(
+                ui,
+                "Total debt:",
+                &mut self.total_debt,
+            );
 
-            ui.horizontal(|ui| {
-                ui.label("Total debt:");
-                ui.text_edit_singleline(&mut self.total_debt);
-            });
+            input_row(
+                ui,
+                "Monthly debt service:",
+                &mut self.monthly_debt_service,
+            );
 
-            ui.horizontal(|ui| {
-                ui.label("Monthly debt service:");
-                ui.text_edit_singleline(&mut self.monthly_debt_service);
-            });
+            input_row(
+                ui,
+                "Requested loan:",
+                &mut self.requested_loan,
+            );
 
-            ui.horizontal(|ui| {
-                ui.label("Requested loan:");
-                ui.text_edit_singleline(&mut self.requested_loan);
-            });
+            input_row(
+                ui,
+                "Loan duration (months):",
+                &mut self.loan_duration_months,
+            );
 
-            ui.horizontal(|ui| {
-                ui.label("Loan duration (months):");
-                ui.text_edit_singleline(&mut self.loan_duration_months);
-            });
+            input_row(
+                ui,
+                "Interest rate (%):",
+                &mut self.interest_rate,
+            );
 
-            ui.horizontal(|ui| {
-                ui.label("Interest rate (%):");
-                ui.text_edit_singleline(&mut self.interest_rate);
-            });
+            input_row(
+                ui,
+                "Dependents:",
+                &mut self.dependents,
+            );
 
-            ui.horizontal(|ui| {
-                ui.label("Dependents:");
-                ui.text_edit_singleline(&mut self.dependents);
-            });
+            input_row(
+                ui,
+                "Age:",
+                &mut self.age,
+            );
+                ui.separator();
 
-            ui.horizontal(|ui| {
-                ui.label("Age:");
-                ui.text_edit_singleline(&mut self.age);
-            });
+            if ui.button("Load demo data").clicked() {
+                self.load_demo_data();
+            }
 
             ui.separator();
 
@@ -185,6 +208,21 @@ impl eframe::App for CreditScoreApp {
 }
 
 impl CreditScoreApp {
+
+    // per demo
+    fn load_demo_data(&mut self) {
+    self.monthly_income = "3500".to_string();
+    self.monthly_expenses = "1500".to_string();
+    self.total_debt = "8000".to_string();
+    self.monthly_debt_service = "450".to_string();
+    self.requested_loan = "10000".to_string();
+    self.loan_duration_months = "36".to_string();
+    self.interest_rate = "3.50".to_string();
+    self.dependents = "0".to_string();
+    self.age = "30".to_string();
+    }   
+
+
     fn calculate(&mut self) {
     self.error = None;
     self.score = None;
@@ -223,7 +261,6 @@ impl CreditScoreApp {
         }
     }
     }
-
 
     fn parse_financial_data(&self) -> Result<FinancialData, String> {
         Ok(FinancialData {
