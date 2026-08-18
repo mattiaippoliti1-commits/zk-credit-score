@@ -9,6 +9,10 @@ pub struct FinancialData {
     pub monthly_debt_service: u64,
     pub requested_loan: u64,
     pub loan_duration_months: u32,
+    // NBS Scenario
+    pub interest_rate_bps: u64,
+    pub dependents: u32,
+    pub age_years: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,6 +58,8 @@ pub fn hash_financial_data(data: &FinancialData) -> [u8; 32] {
     hasher.update(data.monthly_debt_service.to_le_bytes());
     hasher.update(data.requested_loan.to_le_bytes());
     hasher.update(data.loan_duration_months.to_le_bytes());
+    hasher.update(data.interest_rate_bps.to_le_bytes());
+    hasher.update(data.dependents.to_le_bytes());
 
     hasher.finalize().into()
 }
@@ -180,6 +186,9 @@ mod tests {
             monthly_debt_service: 450,
             requested_loan: 10000,
             loan_duration_months: 36,
+            interest_rate_bps: 350,
+            dependents: 0,
+            age_years: 30,
         };
 
         let metrics = calculate_metrics(&data);
@@ -200,6 +209,9 @@ mod tests {
             monthly_debt_service: 450,
             requested_loan: 10000,
             loan_duration_months: 36,
+            interest_rate_bps: 350,
+            dependents: 0,
+            age_years: 30,
         };
 
         let metrics = calculate_metrics(&data);
@@ -237,6 +249,9 @@ mod tests {
             monthly_debt_service: 1200,
             requested_loan: 50000,
             loan_duration_months: 36,
+            interest_rate_bps: 350,
+            dependents: 0,
+            age_years: 30,
         };
 
         let metrics = calculate_metrics(&data);
@@ -255,6 +270,9 @@ mod tests {
             monthly_debt_service: 500,
             requested_loan: 10000,
             loan_duration_months: 36,
+            interest_rate_bps: 350,
+            dependents: 0,
+            age_years: 30,
         };
 
         let metrics = calculate_metrics(&data);
@@ -277,6 +295,9 @@ mod tests {
             monthly_debt_service: 450,
             requested_loan: 10000,
             loan_duration_months: 36,
+            interest_rate_bps: 350,
+            dependents: 0,
+            age_years: 30,
         };
 
         let hash1 = hash_financial_data(&data);
@@ -295,6 +316,9 @@ mod tests {
             monthly_debt_service: 450,
             requested_loan: 10000,
             loan_duration_months: 36,
+            interest_rate_bps: 350,
+            dependents: 0,
+            age_years: 30,
         };
 
         let data2 = FinancialData {
@@ -304,11 +328,59 @@ mod tests {
             monthly_debt_service: 450,
             requested_loan: 10000,
             loan_duration_months: 36,
+            interest_rate_bps: 350,
+            dependents: 0,
+            age_years: 30,
         };
 
         let hash1 = hash_financial_data(&data1);
         let hash2 = hash_financial_data(&data2);
 
         assert_ne!(hash1, hash2);
+    }
+
+
+    // Test di differenti tipologie di appliance
+    // STRONG APPLICANT
+    #[test]
+    fn test_strong_applicant() {
+        let data = FinancialData {
+            monthly_income: 3500,
+            monthly_expenses: 1500,
+            total_debt: 8000,
+            monthly_debt_service: 450,
+            requested_loan: 10000,
+            loan_duration_months: 36,
+            interest_rate_bps: 350,
+            dependents: 0,
+            age_years: 30,
+        };
+
+        let metrics = calculate_metrics(&data);
+        let score = calculate_credit_score(&data, &metrics);
+
+        assert_eq!(score.score, 95);
+        assert!(score.eligible);
+    }
+
+    // RISKY APPLICANT
+    #[test]
+    fn test_risky_applicant() {
+        let data = FinancialData {
+            monthly_income: 2000,
+            monthly_expenses: 1700,
+            total_debt: 50000,
+            monthly_debt_service: 1200,
+            requested_loan: 50000,
+            loan_duration_months: 36,
+            interest_rate_bps: 500,
+            dependents: 2,
+            age_years: 45,
+        };
+
+        let metrics = calculate_metrics(&data);
+        let score = calculate_credit_score(&data, &metrics);
+
+        assert!(!score.eligible);
     }
 }

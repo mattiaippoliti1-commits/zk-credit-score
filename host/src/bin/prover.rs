@@ -11,6 +11,9 @@ fn main() {
         monthly_debt_service: 450,
         requested_loan: 10000,
         loan_duration_months: 36,
+        interest_rate_bps: 350,
+        dependents: 0,
+        age_years: 30,
     };
 
     let env = ExecutorEnv::builder()
