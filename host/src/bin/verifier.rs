@@ -8,6 +8,7 @@ fn main() {
 
     let receipt_json =
         fs::read_to_string("receipt.json")
+        // fs::read_to_string("receipt-tampered.json")
             .expect("Failed to read receipt.json");
 
     let receipt: Receipt =
