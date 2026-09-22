@@ -1,10 +1,6 @@
-use common::AssessmentResult;
-use methods::METHOD_ELF;
-use risc0_zkvm::{default_prover, ExecutorEnv};
-use std::fs;
-use std::time::Instant;
+use host::generate_proof;
 
-fn main() {
+fn main() -> Result<(), String> {
     let input = common::FinancialData {
         monthly_income: 3500,
         monthly_expenses: 1500,
@@ -17,37 +13,16 @@ fn main() {
         age_years: 30,
     };
 
-    let env = ExecutorEnv::builder()
-        .write(&input)
-        .unwrap()
-        .build()
-        .unwrap();
-
     println!("Generating proof...");
 
-    let prover = default_prover();
-
-    // let prove_info = prover
-    //     .prove(env, METHOD_ELF)
-    //     .unwrap();
-
-    let start = Instant::now();
-
-    let prove_info = prover
-        .prove(env, METHOD_ELF)
-        .unwrap();
-
-    let proving_time = start.elapsed();
+    let proof = generate_proof(input)?;
 
     println!(
         "Proving time: {:.3} seconds",
-        proving_time.as_secs_f64()
+        proof.proving_time.as_secs_f64()
     );
 
-    let receipt = prove_info.receipt;
-
-    let result: AssessmentResult =
-        receipt.journal.decode().unwrap();
+    let result = proof.assessment;
 
     println!("Proof generated successfully.");
     println!();
@@ -61,11 +36,7 @@ fn main() {
     }
     println!();
 
-    let receipt_json = serde_json::to_string(&receipt).unwrap();
-
-    fs::write("receipt.json", receipt_json)
-        .expect("Failed to write receipt.json");
-
     println!();
     println!("Receipt saved to receipt.json");
+    Ok(())
 }

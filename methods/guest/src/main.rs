@@ -1,19 +1,3 @@
-// DEFAULT MAIN
-
-// use risc0_zkvm::guest::env;
-
-// fn main() {
-//     // TODO: Implement your guest code here
-
-//     // read the input
-//     let input: u32 = env::read();
-
-//     // TODO: do something with the input
-
-//     // write public output to the journal
-//     env::commit(&input);
-// }
-
 use common::{
     build_assessment_result,
     calculate_credit_score,
@@ -32,7 +16,7 @@ fn main() {
     // Compute credit score and eligibility.
     let credit_score = calculate_credit_score(&data, &metrics);
 
-    // Build the public assessment result and commitment.
+    // Build the public assessment result and input digest.
     let result = build_assessment_result(&data, &credit_score);
 
     // Commit only public information to the journal.

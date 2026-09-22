@@ -1,41 +1,29 @@
 use common::AssessmentResult;
-use methods::METHOD_ID;
+use host::verify_receipt;
 use risc0_zkvm::Receipt;
 use std::fs;
 use std::time::Instant;
 
-fn main() {
+fn main() -> Result<(), String> {
     println!("Loading receipt...");
 
-    let receipt_json =
-        fs::read_to_string("receipt.json")
-        // fs::read_to_string("receipt-tampered.json")
-            .expect("Failed to read receipt.json");
+    let receipt_json = fs::read_to_string("receipt.json")
+        .map_err(|err| format!("Unable to read receipt.json: {err}"))?;
 
-    let receipt: Receipt =
-        serde_json::from_str(&receipt_json)
-            .expect("Failed to deserialize receipt");
+    let receipt: Receipt = serde_json::from_str(&receipt_json)
+        .map_err(|err| format!("Unable to deserialize receipt: {err}"))?;
 
     println!("Receipt loaded successfully.");
     println!();
 
     let start = Instant::now();
 
-    // Get the size of the receipt file in bytes
-    let metadata =
-    fs::metadata("receipt.json")
-        .expect("Failed to read receipt metadata");
+    let metadata = fs::metadata("receipt.json")
+        .map_err(|err| format!("Unable to read receipt metadata: {err}"))?;
 
-    println!(
-        "Receipt size: {:.2} KB",
-        metadata.len() as f64 / 1024.0
-    );
+    println!("Receipt size: {:.2} KB", metadata.len() as f64 / 1024.0);
 
-
-
-    receipt
-        .verify(METHOD_ID)
-        .expect("Receipt verification failed");
+    verify_receipt(&receipt)?;
 
     let verification_time = start.elapsed();
 
@@ -45,10 +33,11 @@ fn main() {
         verification_time.as_secs_f64()
     );
 
-    let result: AssessmentResult =
-        receipt.journal.decode().unwrap();
+    let result: AssessmentResult = receipt
+        .journal
+        .decode()
+        .map_err(|err| format!("Unable to decode receipt journal: {err}"))?;
 
-    // println!("Receipt verification: VALID");
     println!();
     println!("Verified creditworthiness assessment:");
     println!("  Credit score: {}/100", result.credit_score);
@@ -59,4 +48,5 @@ fn main() {
         print!("{byte:02x}");
     }
     println!();
+    Ok(())
 }

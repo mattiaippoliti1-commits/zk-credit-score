@@ -1,111 +1,161 @@
-# RISC Zero Rust Starter Template
+# zk-credit-score
 
-Welcome to the RISC Zero Rust Starter Template! This template is intended to
-give you a starting point for building a project using the RISC Zero zkVM.
-Throughout the template (including in this README), you'll find comments
-labelled `TODO` in places where you'll need to make changes. To better
-understand the concepts behind this template, check out the [zkVM
-Overview][zkvm-overview].
+## Overview
 
-## Quick Start
+`zk-credit-score` is an academic demo of verifiable credit scoring with the
+RISC Zero zkVM. A host program provides private financial data to a zkVM guest;
+the guest computes credit metrics and a final score; RISC Zero produces a
+receipt proving that the expected guest program ran and committed the published
+result.
 
-First, make sure [rustup] is installed. The
-[`rust-toolchain.toml`][rust-toolchain] file will be used by `cargo` to
-automatically install the correct version.
+The scoring model is intentionally simple. Its purpose is to demonstrate a
+concrete zkVM workflow, not to implement a production banking model.
 
-To build all methods and execute the method within the zkVM, run the following
-command:
-
-```bash
-cargo run
-```
-
-This is an empty template, and so there is no expected output (until you modify
-the code).
-
-### Executing the Project Locally in Development Mode
-
-During development, faster iteration upon code changes can be achieved by leveraging [dev-mode], we strongly suggest activating it during your early development phase. Furthermore, you might want to get insights into the execution statistics of your project, and this can be achieved by specifying the environment variable `RUST_LOG="[executor]=info"` before running your project.
-
-Put together, the command to run your project in development mode while getting execution statistics is:
-
-```bash
-RUST_LOG="[executor]=info" RISC0_DEV_MODE=1 cargo run
-```
-
-### Running Proofs Remotely on Bonsai
-
-_Note: The Bonsai proving service is still in early Alpha; an API key is
-required for access. [Click here to request access][bonsai access]._
-
-If you have access to the URL and API key to Bonsai you can run your proofs
-remotely. To prove in Bonsai mode, invoke `cargo run` with two additional
-environment variables:
-
-```bash
-BONSAI_API_KEY="YOUR_API_KEY" BONSAI_API_URL="BONSAI_URL" cargo run
-```
-
-## How to Create a Project Based on This Template
-
-Search this template for the string `TODO`, and make the necessary changes to
-implement the required feature described by the `TODO` comment. Some of these
-changes will be complex, and so we have a number of instructional resources to
-assist you in learning how to write your own code for the RISC Zero zkVM:
-
-- The [RISC Zero Developer Docs][dev-docs] is a great place to get started.
-- Example projects are available in the [examples folder][examples] of
-  [`risc0`][risc0-repo] repository.
-- Reference documentation is available at [https://docs.rs][docs.rs], including
-  [`risc0-zkvm`][risc0-zkvm], [`cargo-risczero`][cargo-risczero],
-  [`risc0-build`][risc0-build], and [others][crates].
-
-## Directory Structure
-
-It is possible to organize the files for these components in various ways.
-However, in this starter template we use a standard directory structure for zkVM
-applications, which we think is a good starting point for your applications.
+## Architecture
 
 ```text
-project_name
-├── Cargo.toml
-├── host
-│   ├── Cargo.toml
-│   └── src
-│       └── main.rs                    <-- [Host code goes here]
-└── methods
-    ├── Cargo.toml
-    ├── build.rs
-    ├── guest
-    │   ├── Cargo.toml
-    │   └── src
-    │       └── method_name.rs         <-- [Guest code goes here]
-    └── src
-        └── lib.rs
+FinancialData
+  -> Host
+  -> RISC Zero zkVM Guest
+  -> Credit Scoring
+  -> Journal
+  -> Receipt
+  -> Verification
 ```
 
-## Video Tutorial
+- `common`: shared data structures, hashing, metric calculation, and scoring.
+- `methods`: RISC Zero method build integration and generated guest image ID.
+- `methods/guest`: guest program executed inside the zkVM.
+- `host`: command-line prover/verifier and proof-generation helpers.
+- `app`: small egui desktop GUI for the demo workflow.
 
-For a walk-through of how to build with this template, check out this [excerpt
-from our workshop at ZK HACK III][zkhack-iii].
+## Private Inputs
 
-## Questions, Feedback, and Collaborations
+The guest receives a `FinancialData` value containing:
 
-We'd love to hear from you on [Discord][discord] or [Twitter][twitter].
+- monthly income;
+- monthly expenses;
+- total debt;
+- monthly debt service;
+- requested loan;
+- loan duration in months;
+- interest rate in basis points;
+- number of dependents;
+- age in years.
 
-[bonsai access]: https://bonsai.xyz/apply
-[cargo-risczero]: https://docs.rs/cargo-risczero
-[crates]: https://github.com/risc0/risc0/blob/main/README.md#rust-binaries
-[dev-docs]: https://dev.risczero.com
-[dev-mode]: https://dev.risczero.com/api/generating-proofs/dev-mode
-[discord]: https://discord.gg/risczero
-[docs.rs]: https://docs.rs/releases/search?query=risc0
-[examples]: https://github.com/risc0/risc0/tree/main/examples
-[risc0-build]: https://docs.rs/risc0-build
-[risc0-repo]: https://www.github.com/risc0/risc0
-[risc0-zkvm]: https://docs.rs/risc0-zkvm
-[rust-toolchain]: rust-toolchain.toml
-[rustup]: https://rustup.rs
-[twitter]: https://twitter.com/risczero
-[zkhack-iii]: https://www.youtube.com/watch?v=Yg_BGqj_6lg&list=PLcPzhUaCxlCgig7ofeARMPwQ8vbuD6hC5&index=5
-[zkvm-overview]: https://dev.risczero.com/zkvm
+These raw values are private inputs to the zkVM execution and are not directly
+written to the journal.
+
+## Public Outputs
+
+The journal commits only:
+
+- `credit_score`;
+- `eligible`;
+- `input_hash`.
+
+`input_hash` is a deterministic SHA-256 digest of the `FinancialData` fields in
+a fixed order. It is useful as a public identifier for the exact input used in a
+proof, but it is not a complete privacy mechanism by itself.
+
+## Credit Score
+
+The guest computes:
+
+- DTI: total debt divided by annual income;
+- DSTI: monthly debt service divided by monthly income;
+- LTI: requested loan divided by annual income;
+- Disposable Income: monthly income minus expenses and existing debt service.
+
+Each metric contributes to a simple score from 0 to 100. The final score is the
+average of the component scores, and the applicant is eligible when the score is
+at least 60.
+
+## Zero-Knowledge Verification
+
+The receipt proves that the RISC Zero guest image identified by `METHOD_ID`
+executed successfully and produced the committed journal. A verifier can check
+the receipt and trust that the published `credit_score`, `eligible`, and
+`input_hash` came from the expected guest program, without receiving the raw
+financial inputs.
+
+The verifier still learns the public outputs. The score, eligibility decision,
+and deterministic input hash can leak information about the private inputs.
+
+## Tampering Detection
+
+The journal is authenticated by the receipt. If a byte of the journal is changed
+after proving, receipt verification fails. The host tests and the manual
+tampering flow both check this property.
+
+## Running the Project
+
+Build/check the workspace:
+
+```bash
+cargo check --workspace
+```
+
+Run tests:
+
+```bash
+cargo test --workspace
+```
+
+Generate a real receipt:
+
+```bash
+cargo run --bin prover
+```
+
+Verify the saved receipt:
+
+```bash
+cargo run --bin verifier
+```
+
+Check the GUI crate:
+
+```bash
+cargo check -p app
+```
+
+## Example
+
+The demo input currently used by the CLI has:
+
+- monthly income: `3500`;
+- monthly expenses: `1500`;
+- total debt: `8000`;
+- monthly debt service: `450`;
+- requested loan: `10000`;
+- loan duration: `36` months;
+- interest rate: `350` basis points;
+- dependents: `0`;
+- age: `30`.
+
+For this input, the verified result is:
+
+```text
+Credit score: 95/100
+Eligible: true
+```
+
+## Security / Privacy Notes
+
+The raw financial inputs are not published in the journal, but the journal does
+publish a deterministic SHA-256 digest of them. This digest lets a party compare
+or later recognize the exact same input, and it can support dictionary attacks
+when input values are drawn from a small or predictable space.
+
+For a stronger privacy-oriented protocol, the input digest could include a
+salt/nonce or be replaced with a more explicit commitment scheme. This project
+keeps the deterministic hash because it is simple and sufficient for the
+academic demo: proving correct execution of a credit-scoring computation inside
+a zkVM while keeping raw inputs out of the public journal.
+
+## Academic Purpose
+
+This repository is a university cryptography project. It demonstrates RISC Zero
+zkVM proving, receipt verification, journal authentication, and careful handling
+of public versus private data. It is not intended for real credit decisions.

@@ -48,7 +48,6 @@ pub struct AssessmentResult {
     pub input_hash: [u8; 32],
 }
 
-
 pub fn hash_financial_data(data: &FinancialData) -> [u8; 32] {
     let mut hasher = Sha256::new();
 
@@ -60,6 +59,7 @@ pub fn hash_financial_data(data: &FinancialData) -> [u8; 32] {
     hasher.update(data.loan_duration_months.to_le_bytes());
     hasher.update(data.interest_rate_bps.to_le_bytes());
     hasher.update(data.dependents.to_le_bytes());
+    hasher.update(data.age_years.to_le_bytes());
 
     hasher.finalize().into()
 }
@@ -76,8 +76,6 @@ pub fn build_assessment_result(
 }
 
 pub fn calculate_metrics(data: &FinancialData) -> CreditMetrics {
-    let annual_income = data.monthly_income * 12;
-
     if data.monthly_income == 0 {
         return CreditMetrics {
             dti_bps: 10_000,
@@ -87,13 +85,16 @@ pub fn calculate_metrics(data: &FinancialData) -> CreditMetrics {
         };
     }
 
-    let dti_bps = data.total_debt * 10_000 / annual_income;
+    let annual_income = data.monthly_income as u128 * 12;
 
-    let dsti_bps =
-        data.monthly_debt_service * 10_000 / data.monthly_income;
+    let dti_bps = ratio_bps(data.total_debt as u128, annual_income);
 
-    let lti_bps =
-        data.requested_loan * 10_000 / annual_income;
+    let dsti_bps = ratio_bps(
+        data.monthly_debt_service as u128,
+        data.monthly_income as u128,
+    );
+
+    let lti_bps = ratio_bps(data.requested_loan as u128, annual_income);
 
     let disposable_income = data
         .monthly_income
@@ -106,6 +107,14 @@ pub fn calculate_metrics(data: &FinancialData) -> CreditMetrics {
         lti_bps,
         disposable_income,
     }
+}
+
+fn ratio_bps(numerator: u128, denominator: u128) -> u64 {
+    if denominator == 0 {
+        return 10_000;
+    }
+
+    ((numerator.saturating_mul(10_000)) / denominator).min(u64::MAX as u128) as u64
 }
 
 /// Convert a ratio expressed in basis points into a score from 0 to 100.
@@ -126,10 +135,7 @@ fn score_ratio(ratio_bps: u64) -> u64 {
     }
 }
 
-pub fn calculate_credit_score(
-    data: &FinancialData,
-    metrics: &CreditMetrics,
-) -> CreditScore {
+pub fn calculate_credit_score(data: &FinancialData, metrics: &CreditMetrics) -> CreditScore {
     let dti_score = score_ratio(metrics.dti_bps);
 
     let dsti_score = score_ratio(metrics.dsti_bps);
@@ -142,12 +148,14 @@ pub fn calculate_credit_score(
         _ => 0,
     };
 
-    let disposable_ratio_bps =
-        if data.monthly_income == 0 {
-            0
-        } else {
-            metrics.disposable_income * 10_000 / data.monthly_income
-        };
+    let disposable_ratio_bps = if data.monthly_income == 0 {
+        0
+    } else {
+        ratio_bps(
+            metrics.disposable_income as u128,
+            data.monthly_income as u128,
+        )
+    };
 
     let disposable_score = match disposable_ratio_bps {
         5_000..=10_000 => 100,
@@ -157,8 +165,7 @@ pub fn calculate_credit_score(
         _ => 0,
     };
 
-    let score =
-        (dti_score + dsti_score + lti_score + disposable_score) / 4;
+    let score = (dti_score + dsti_score + lti_score + disposable_score) / 4;
 
     let eligible = score >= 60;
 
@@ -339,6 +346,51 @@ mod tests {
         assert_ne!(hash1, hash2);
     }
 
+    #[test]
+    fn test_financial_data_hash_includes_age() {
+        let data1 = FinancialData {
+            monthly_income: 3500,
+            monthly_expenses: 1500,
+            total_debt: 8000,
+            monthly_debt_service: 450,
+            requested_loan: 10000,
+            loan_duration_months: 36,
+            interest_rate_bps: 350,
+            dependents: 0,
+            age_years: 30,
+        };
+
+        let data2 = FinancialData {
+            age_years: 31,
+            ..data1.clone()
+        };
+
+        assert_ne!(hash_financial_data(&data1), hash_financial_data(&data2));
+    }
+
+    #[test]
+    fn test_metrics_do_not_overflow_for_large_values() {
+        let data = FinancialData {
+            monthly_income: u64::MAX,
+            monthly_expenses: 0,
+            total_debt: u64::MAX,
+            monthly_debt_service: u64::MAX,
+            requested_loan: u64::MAX,
+            loan_duration_months: 360,
+            interest_rate_bps: 10_000,
+            dependents: u32::MAX,
+            age_years: u32::MAX,
+        };
+
+        let metrics = calculate_metrics(&data);
+        let score = calculate_credit_score(&data, &metrics);
+
+        assert_eq!(metrics.dti_bps, 833);
+        assert_eq!(metrics.dsti_bps, 10_000);
+        assert_eq!(metrics.lti_bps, 833);
+        assert_eq!(metrics.disposable_income, 0);
+        assert!(!score.eligible);
+    }
 
     // Test di differenti tipologie di appliance
     // STRONG APPLICANT
