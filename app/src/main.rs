@@ -1,7 +1,6 @@
-// use common::{calculate_credit_score, calculate_metrics, FinancialData};
 use common::FinancialData;
-use host::generate_proof;
 use eframe::egui;
+use host::generate_proof;
 use std::fs;
 
 fn main() -> eframe::Result<()> {
@@ -14,19 +13,12 @@ fn main() -> eframe::Result<()> {
     )
 }
 
-
 fn input_row(ui: &mut egui::Ui, label: &str, value: &mut String) {
-ui.horizontal(|ui| {
-    ui.add_sized(
-        [180.0, 20.0],
-        egui::Label::new(label),
-    );
+    ui.horizontal(|ui| {
+        ui.add_sized([180.0, 20.0], egui::Label::new(label));
 
-    ui.add_sized(
-        [180.0, 20.0],
-        egui::TextEdit::singleline(value),
-    );
-});
+        ui.add_sized([180.0, 20.0], egui::TextEdit::singleline(value));
+    });
 }
 
 #[derive(Default)]
@@ -53,40 +45,22 @@ struct CreditScoreApp {
 }
 
 impl eframe::App for CreditScoreApp {
-    fn update(
-        &mut self,
-        ctx: &egui::Context,
-        _frame: &mut eframe::Frame,
-    ) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("ZK Credit Score");
             ui.separator();
 
             ui.heading("Financial Profile");
 
-            input_row(
-            ui,
-            "Monthly expenses:",
-            &mut self.monthly_expenses,
-        );
+            input_row(ui, "Monthly income:", &mut self.monthly_income);
 
-            input_row(
-                ui,
-                "Total debt:",
-                &mut self.total_debt,
-            );
+            input_row(ui, "Monthly expenses:", &mut self.monthly_expenses);
 
-            input_row(
-                ui,
-                "Monthly debt service:",
-                &mut self.monthly_debt_service,
-            );
+            input_row(ui, "Total debt:", &mut self.total_debt);
 
-            input_row(
-                ui,
-                "Requested loan:",
-                &mut self.requested_loan,
-            );
+            input_row(ui, "Monthly debt service:", &mut self.monthly_debt_service);
+
+            input_row(ui, "Requested loan:", &mut self.requested_loan);
 
             input_row(
                 ui,
@@ -94,24 +68,12 @@ impl eframe::App for CreditScoreApp {
                 &mut self.loan_duration_months,
             );
 
-            input_row(
-                ui,
-                "Interest rate (%):",
-                &mut self.interest_rate,
-            );
+            input_row(ui, "Interest rate (%):", &mut self.interest_rate);
 
-            input_row(
-                ui,
-                "Dependents:",
-                &mut self.dependents,
-            );
+            input_row(ui, "Dependents:", &mut self.dependents);
 
-            input_row(
-                ui,
-                "Age:",
-                &mut self.age,
-            );
-                ui.separator();
+            input_row(ui, "Age:", &mut self.age);
+            ui.separator();
 
             if ui.button("Load demo data").clicked() {
                 self.load_demo_data();
@@ -136,192 +98,146 @@ impl eframe::App for CreditScoreApp {
 
                 if let Some(eligible) = self.eligible {
                     if eligible {
-                        ui.colored_label(
-                            egui::Color32::GREEN,
-                            "ELIGIBLE",
-                        );
+                        ui.colored_label(egui::Color32::GREEN, "ELIGIBLE");
                     } else {
-                        ui.colored_label(
-                            egui::Color32::RED,
-                            "NOT ELIGIBLE",
-                        );
+                        ui.colored_label(egui::Color32::RED, "NOT ELIGIBLE");
                     }
                 }
             }
 
             if self.proof_generated {
-                        ui.separator();
+                ui.separator();
 
-                        ui.heading("Zero-Knowledge Proof");
+                ui.heading("Zero-Knowledge Proof");
 
-                        if let Some(hash) = &self.input_hash {
-                            ui.label("Input SHA-256:");
+                if let Some(hash) = &self.input_hash {
+                    ui.label("Input SHA-256:");
 
-                            ui.monospace(hash);
-                        }
+                    ui.monospace(hash);
+                }
 
-                        if let Some(time) = self.proving_time {
-                            ui.label(format!(
-                                "Proving time: {:.3} seconds",
-                                time
-                            ));
-                        }
+                if let Some(time) = self.proving_time {
+                    ui.label(format!("Proving time: {:.3} seconds", time));
+                }
 
-                        if let Some(size) = self.receipt_size {
-                            ui.label(format!(
-                                "Receipt size: {:.2} KB",
-                                size
-                            ));
-                        }
+                if let Some(size) = self.receipt_size {
+                    ui.label(format!("Receipt size: {:.2} KB", size));
+                }
 
-                        ui.separator();
+                ui.separator();
 
-                        if ui.button("Verify Receipt").clicked() {
-                            self.verify_receipt();
-                        }
+                if ui.button("Verify Receipt").clicked() {
+                    self.verify_receipt();
+                }
 
-                        if let Some(status) = self.verification_status {
-                            if status {
-                                ui.colored_label(
-                                    egui::Color32::GREEN,
-                                    "Receipt verification: VALID",
-                                );
-                            } else {
-                                ui.colored_label(
-                                    egui::Color32::RED,
-                                    "Receipt verification: INVALID",
-                                );
-                            }
-                        }
-
-                        if let Some(error) = &self.verification_error {
-                            ui.colored_label(
-                                egui::Color32::RED,
-                                error,
-                            );
-                        }
-
-                        ui.label("Proof status: GENERATED");
+                if let Some(status) = self.verification_status {
+                    if status {
+                        ui.colored_label(egui::Color32::GREEN, "Receipt verification: VALID");
+                    } else {
+                        ui.colored_label(egui::Color32::RED, "Receipt verification: INVALID");
                     }
+                }
+
+                if let Some(error) = &self.verification_error {
+                    ui.colored_label(egui::Color32::RED, error);
+                }
+
+                ui.label("Proof status: GENERATED");
+            }
         });
     }
 }
 
 impl CreditScoreApp {
-
     // per demo
     fn load_demo_data(&mut self) {
-    self.monthly_income = "3500".to_string();
-    self.monthly_expenses = "1500".to_string();
-    self.total_debt = "8000".to_string();
-    self.monthly_debt_service = "450".to_string();
-    self.requested_loan = "10000".to_string();
-    self.loan_duration_months = "36".to_string();
-    self.interest_rate = "3.50".to_string();
-    self.dependents = "0".to_string();
-    self.age = "30".to_string();
-    }   
-
+        self.monthly_income = "3500".to_string();
+        self.monthly_expenses = "1500".to_string();
+        self.total_debt = "8000".to_string();
+        self.monthly_debt_service = "450".to_string();
+        self.requested_loan = "10000".to_string();
+        self.loan_duration_months = "36".to_string();
+        self.interest_rate = "3.50".to_string();
+        self.dependents = "0".to_string();
+        self.age = "30".to_string();
+    }
 
     fn calculate(&mut self) {
-    self.error = None;
-    self.score = None;
-    self.eligible = None;
-    self.input_hash = None;
-    self.proving_time = None;
-    self.receipt_size = None;
-    self.proof_generated = false;
-    self.verification_status = None;
-    self.verification_error = None; 
+        self.error = None;
+        self.score = None;
+        self.eligible = None;
+        self.input_hash = None;
+        self.proving_time = None;
+        self.receipt_size = None;
+        self.proof_generated = false;
+        self.verification_status = None;
+        self.verification_error = None;
 
-    let result = self.parse_financial_data();
+        let result = self.parse_financial_data();
 
-    match result {
-        Ok(data) => {
-            let result = generate_proof(data);
+        match result {
+            Ok(data) => match generate_proof(data) {
+                Ok(result) => {
+                    self.score = Some(result.assessment.credit_score);
+                    self.eligible = Some(result.assessment.eligible);
 
-            self.score = Some(result.assessment.credit_score);
-            self.eligible = Some(result.assessment.eligible);
+                    self.input_hash = Some(hex::encode(result.assessment.input_hash));
 
-            self.input_hash = Some(
-                hex::encode(result.assessment.input_hash)
-            );
+                    self.proving_time = Some(result.proving_time.as_secs_f64());
 
-            self.proving_time =
-                Some(result.proving_time.as_secs_f64());
+                    self.receipt_size = fs::metadata("receipt.json")
+                        .ok()
+                        .map(|metadata| metadata.len() as f64 / 1024.0);
 
-            self.receipt_size = fs::metadata("receipt.json")
-                .ok()
-                .map(|metadata| metadata.len() as f64 / 1024.0);
+                    self.proof_generated = true;
+                }
 
-            self.proof_generated = true;
+                Err(error) => {
+                    self.error = Some(error);
+                }
+            },
+            Err(error) => {
+                self.error = Some(error);
+            }
         }
-        Err(error) => {
-            self.error = Some(error);
-        }
-    }
     }
 
     fn parse_financial_data(&self) -> Result<FinancialData, String> {
         Ok(FinancialData {
-            monthly_income: parse_u64(
-                &self.monthly_income,
-                "Monthly income",
-            )?,
+            monthly_income: parse_u64(&self.monthly_income, "Monthly income")?,
 
-            monthly_expenses: parse_u64(
-                &self.monthly_expenses,
-                "Monthly expenses",
-            )?,
+            monthly_expenses: parse_u64(&self.monthly_expenses, "Monthly expenses")?,
 
-            total_debt: parse_u64(
-                &self.total_debt,
-                "Total debt",
-            )?,
+            total_debt: parse_u64(&self.total_debt, "Total debt")?,
 
-            monthly_debt_service: parse_u64(
-                &self.monthly_debt_service,
-                "Monthly debt service",
-            )?,
+            monthly_debt_service: parse_u64(&self.monthly_debt_service, "Monthly debt service")?,
 
-            requested_loan: parse_u64(
-                &self.requested_loan,
-                "Requested loan",
-            )?,
+            requested_loan: parse_u64(&self.requested_loan, "Requested loan")?,
 
-            loan_duration_months: parse_u32(
-                &self.loan_duration_months,
-                "Loan duration",
-            )?,
+            loan_duration_months: parse_u32(&self.loan_duration_months, "Loan duration")?,
 
             interest_rate_bps: {
-                let rate = parse_f64(
-                    &self.interest_rate,
-                    "Interest rate",
-                )?;
+                let rate = parse_f64(&self.interest_rate, "Interest rate")?;
+
+                if !rate.is_finite() || rate < 0.0 {
+                    return Err("Interest rate must be a non-negative finite number".to_string());
+                }
 
                 (rate * 100.0) as u64
             },
 
-            dependents: parse_u32(
-                &self.dependents,
-                "Dependents",
-            )?,
+            dependents: parse_u32(&self.dependents, "Dependents")?,
 
-            age_years: parse_u32(
-                &self.age,
-                "Age",
-            )?,
+            age_years: parse_u32(&self.age, "Age")?,
         })
     }
 
     fn verify_receipt(&mut self) {
-    self.verification_status = None;
-    self.verification_error = None;
+        self.verification_status = None;
+        self.verification_error = None;
 
-    match host::load_receipt() {
-        Ok(receipt) => {
-            match host::verify_receipt(&receipt) {
+        match host::load_receipt() {
+            Ok(receipt) => match host::verify_receipt(&receipt) {
                 Ok(()) => {
                     self.verification_status = Some(true);
                 }
@@ -330,15 +246,14 @@ impl CreditScoreApp {
                     self.verification_status = Some(false);
                     self.verification_error = Some(error);
                 }
+            },
+
+            Err(error) => {
+                self.verification_status = Some(false);
+                self.verification_error = Some(error);
             }
         }
-
-        Err(error) => {
-            self.verification_status = Some(false);
-            self.verification_error = Some(error);
-        }
     }
-}
 }
 
 fn parse_u64(value: &str, field: &str) -> Result<u64, String> {
